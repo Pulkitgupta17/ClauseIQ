@@ -1,0 +1,51 @@
+# --- Python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.Python
+
+# --- Virtual envs / uv ------------------------------------------------------
+.venv/
+venv/
+# uv.lock is committed on purpose (reproducible builds) — do NOT ignore it.
+
+# --- Test / type / lint caches ----------------------------------------------
+.pytest_cache/
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# --- Secrets / config -------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# --- Local data / model artifacts (regenerable) -----------------------------
+# The curated law corpus under data/laws/ IS committed (source of truth).
+# Generated ChromaDB persistence and downloaded model caches are not.
+data/chroma/
+*.sqlite3
+.cache/
+models/
+
+# --- Langfuse / Postgres local volumes --------------------------------------
+.docker-data/
+
+# --- OS / editor ------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# --- Frontend (added in a later milestone) ----------------------------------
+node_modules/
+frontend/dist/
+frontend/.vite/
