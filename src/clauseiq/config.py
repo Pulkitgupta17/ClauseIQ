@@ -71,6 +71,9 @@ class Settings(BaseSettings):
     chroma_port: int = Field(default=8000, ge=1, le=65535)
     chroma_collection_law: str = "indian_law"
     chroma_persist_dir: Path = Path("data/chroma")
+    # "embedded" = local PersistentClient (default; no server needed for dev/CI/tests);
+    # "http" = connect to a ChromaDB server at chroma_host:chroma_port (Docker compose).
+    chroma_mode: Literal["embedded", "http"] = "embedded"
 
     # --- Chunking (defaults aligned to all-MiniLM-L6-v2's 256-token window) --
     chunk_max_tokens: int = Field(default=250, ge=1)

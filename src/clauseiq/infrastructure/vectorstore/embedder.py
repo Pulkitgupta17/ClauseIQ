@@ -79,7 +79,12 @@ class SentenceTransformerEmbedder:
     @property
     def dimension(self) -> int:
         """Embedding dimensionality of the loaded model."""
-        dim = self._ensure_model().get_sentence_embedding_dimension()
+        model = self._ensure_model()
+        # sentence-transformers renamed this method; support both.
+        get_dim = getattr(model, "get_embedding_dimension", None) or (
+            model.get_sentence_embedding_dimension
+        )
+        dim = get_dim()
         return int(dim) if dim is not None else 0
 
 

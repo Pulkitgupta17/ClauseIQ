@@ -108,7 +108,6 @@ class PyMuPDFParser(BasePDFParser):
         return await asyncio.to_thread(self._parse_sync, source, source_name)
 
     def _parse_sync(self, source: Path | bytes, source_name: str | None) -> ParsedDocument:
-
         name = source_name or (str(source) if isinstance(source, Path) else "<bytes>")
         try:
             document = self._open(source)

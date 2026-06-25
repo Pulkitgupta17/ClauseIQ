@@ -173,16 +173,21 @@ class ChromaVectorStore:
 def build_chroma_client() -> ClientAPI:
     """Build a Chroma client from settings.
 
-    Uses an HTTP client when ``chroma_host`` is set to a non-local service in a
-    container deployment; otherwise a local persistent client at
-    ``chroma_persist_dir`` so the data pipeline runs with no external service.
+    ``chroma_mode == "http"`` connects to a ChromaDB server (Docker compose);
+    otherwise a local persistent client at ``chroma_persist_dir`` is used so the
+    data pipeline runs with no external service (dev/CI/tests).
     """
     import chromadb
 
+    if settings.chroma_mode == "http":
+        http_client: ClientAPI = chromadb.HttpClient(
+            host=settings.chroma_host, port=settings.chroma_port
+        )
+        return http_client
     persist_dir = settings.chroma_persist_dir
     persist_dir.mkdir(parents=True, exist_ok=True)
-    client: ClientAPI = chromadb.PersistentClient(path=str(persist_dir))
-    return client
+    persistent_client: ClientAPI = chromadb.PersistentClient(path=str(persist_dir))
+    return persistent_client
 
 
 def build_law_vector_store(client: ClientAPI | None = None) -> ChromaVectorStore:
