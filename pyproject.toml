@@ -1,0 +1,153 @@
+[project]
+name = "clauseiq"
+version = "0.1.0"
+description = "Multi-agent AI for Indian contract analysis with an MCP server."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Pulkit Gupta" }]
+
+# Runtime dependencies (the locked backend stack). Pins follow the locked-stack
+# table: caret (^x.y) -> ">=x.y,<x.(y+1)" for 0.x libraries; "latest" -> a safe
+# lower bound. Exact versions are frozen in uv.lock for reproducible builds.
+dependencies = [
+    "pydantic>=2.7",
+    "pydantic-settings>=2.4",
+    "structlog>=24.1",
+    "fastapi>=0.115,<0.116",
+    "uvicorn[standard]>=0.30",
+    "langgraph>=0.2,<0.3",
+    "chromadb>=0.5,<0.6",
+    "sentence-transformers>=3.0",
+    "rank-bm25>=0.2.2",
+    "pymupdf>=1.24",
+    "httpx>=0.27",
+    "google-genai>=0.3",
+    "mcp>=1.0",
+    "langfuse>=2.0,<3.0",
+    "numpy>=1.26",
+]
+
+[project.scripts]
+clauseiq-ingest-laws = "clauseiq.infrastructure.ingestion.law_ingestor:main"
+
+[dependency-groups]
+# Installed by default on `uv sync`. ruff/mypy match the pre-commit pins so the
+# local loop, pre-commit, and CI all run identical tool versions.
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "hypothesis>=6.100",
+    "ruff>=0.6,<0.7",
+    "mypy>=1.11,<1.12",
+    "pre-commit>=3.7",
+    "respx>=0.21",
+    "types-requests",
+]
+# Heavy; only the eval harness needs it. Install with `uv sync --group eval`.
+eval = ["deepeval>=1.5"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/clauseiq"]
+
+# ---------------------------------------------------------------------------
+# Ruff — linter + formatter
+# ---------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes
+    "I",         # isort
+    "UP",        # pyupgrade
+    "B",         # flake8-bugbear
+    "SIM",       # flake8-simplify
+    "C4",        # flake8-comprehensions
+    "ASYNC",     # flake8-async
+    "PTH",       # flake8-use-pathlib
+    "RUF",       # ruff-specific
+    "N",         # pep8-naming
+]
+ignore = [
+    "E501",  # line length is handled by the formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["N802", "N806"]  # test helpers may use non-PEP8 casing
+
+[tool.ruff.lint.isort]
+known-first-party = ["clauseiq"]
+
+# ---------------------------------------------------------------------------
+# mypy — strict static typing
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["src", "tests", "scripts"]
+warn_unreachable = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+show_error_codes = true
+
+# Third-party libraries without type stubs.
+[[tool.mypy.overrides]]
+module = [
+    "chromadb.*",
+    "sentence_transformers.*",
+    "rank_bm25.*",
+    "transformers.*",
+    "fitz",
+    "fitz.*",
+    "langgraph.*",
+    "langchain_core.*",
+    "google.genai.*",
+    "mcp.*",
+    "langfuse.*",
+    "deepeval.*",
+    "unstructured.*",
+]
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra --strict-markers --strict-config"
+testpaths = ["tests"]
+# Import the package from src/ directly so test collection never depends on the
+# (occasionally stale) editable install being rebuilt.
+pythonpath = ["src"]
+asyncio_mode = "auto"
+markers = [
+    "integration: tests that touch real infrastructure (ChromaDB, models)",
+    "evaluation: full LLM-as-judge eval suite",
+]
+
+# ---------------------------------------------------------------------------
+# coverage
+# ---------------------------------------------------------------------------
+[tool.coverage.run]
+source = ["src/clauseiq"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",  # Protocol method stubs
+]

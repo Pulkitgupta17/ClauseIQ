@@ -1,0 +1,26 @@
+# Pre-commit hooks: fast, deterministic gates that run before every commit.
+# Versions are pinned (per spec) so every contributor and CI run uses the same
+# tool versions as the local dev loop.
+#
+# The mypy hook runs in pre-commit's own isolated virtualenv, so it cannot see
+# the project's installed dependencies; the type stubs it needs to resolve our
+# imports are declared explicitly under `additional_dependencies`.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.0
+    hooks:
+      - id: mypy
+        # Scope to source: tests intentionally use loosened typing patterns.
+        files: ^src/
+        additional_dependencies:
+          - pydantic
+          - pydantic-settings
+          - structlog
+          - types-requests
