@@ -15,7 +15,8 @@ services:
     build: .
     restart: unless-stopped
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       CLAUSEIQ_CHROMA_MODE: http
       CLAUSEIQ_CHROMA_HOST: chromadb
