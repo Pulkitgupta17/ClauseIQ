@@ -106,6 +106,7 @@ module = [
     "chromadb.*",
     "sentence_transformers.*",
     "rank_bm25.*",
+    "transformers.*",
     "fitz",
     "fitz.*",
     "langgraph.*",
