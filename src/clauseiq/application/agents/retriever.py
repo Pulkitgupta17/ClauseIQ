@@ -13,6 +13,7 @@ from typing import ClassVar
 from clauseiq.application.agents.state import AnalysisState
 from clauseiq.domain.entities import ScoredChunk
 from clauseiq.domain.ports import LawRepository
+from clauseiq.infrastructure.observability.langfuse_client import traced
 from clauseiq.logging_config import get_logger
 
 log = get_logger(__name__)
@@ -30,6 +31,7 @@ class RetrieverAgent:
         self._per_query_k = per_query_k
         self._pool_size = pool_size
 
+    @traced("retriever")
     async def __call__(self, state: AnalysisState) -> dict[str, object]:
         queries = list(state.get("retrieval_queries") or [])
         if not queries:

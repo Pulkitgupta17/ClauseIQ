@@ -27,6 +27,7 @@ from pydantic import BaseModel
 from clauseiq.config import settings
 from clauseiq.domain.exceptions import ConfigurationError, LLMError
 from clauseiq.domain.result import Err, Ok, Result
+from clauseiq.infrastructure.observability.usage import record_usage
 from clauseiq.logging_config import get_logger
 
 log = get_logger(__name__)
@@ -198,8 +199,18 @@ class GeminiClient:
                     )
                 )
             else:
+                self._record_usage(response)
                 return Ok(response)
         return Err(LLMError("retries_exhausted", model=self.model_name))
+
+    def _record_usage(self, response: Any) -> None:
+        """Record token usage from a Gemini response into the active accumulator."""
+        usage = getattr(response, "usage_metadata", None)
+        if usage is None:
+            return
+        prompt = int(getattr(usage, "prompt_token_count", 0) or 0)
+        completion = int(getattr(usage, "candidates_token_count", 0) or 0)
+        record_usage(self.model_name, prompt, completion)
 
     async def generate(
         self, prompt: str, *, system: str | None = None, temperature: float | None = None

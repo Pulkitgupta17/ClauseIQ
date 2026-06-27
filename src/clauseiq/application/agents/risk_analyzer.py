@@ -20,6 +20,7 @@ from clauseiq.application.agents.state import AnalysisState
 from clauseiq.application.schemas import RiskAnalysisResult, SegmentedClause
 from clauseiq.domain.entities import ScoredChunk
 from clauseiq.infrastructure.llm.base import LLMClient
+from clauseiq.infrastructure.observability.langfuse_client import traced
 from clauseiq.logging_config import get_logger
 
 log = get_logger(__name__)
@@ -95,6 +96,7 @@ class RiskAnalyzerAgent:
                 blocks.append(f"Relevant Indian law for clause {clause.index}: (none retrieved)")
         return "\n\n".join(blocks)
 
+    @traced("risk_analyzer")
     async def __call__(self, state: AnalysisState) -> dict[str, object]:
         clauses = state.get("clauses", [])
         pool = state.get("law_pool", [])

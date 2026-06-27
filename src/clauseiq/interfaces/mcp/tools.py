@@ -23,6 +23,7 @@ from clauseiq.application.workflows import AnalysisDeps, ContractAnalyzer
 from clauseiq.config import settings
 from clauseiq.domain.value_objects import LawCode
 from clauseiq.infrastructure.llm.factory import LLMRole, get_llm_client
+from clauseiq.infrastructure.observability.langfuse_client import traced
 from clauseiq.infrastructure.repositories.law import ChromaLawRepository, build_law_repository
 from clauseiq.logging_config import get_logger
 
@@ -87,6 +88,7 @@ def _parse_citation(citation: str) -> tuple[LawCode, str] | None:
     return law_code, match.group(1)
 
 
+@traced("mcp:analyze_contract")
 async def analyze_contract(contract_text: str) -> dict[str, Any]:
     """Run the full multi-agent analysis on a contract; return the structured result."""
     try:
@@ -103,6 +105,7 @@ async def analyze_contract(contract_text: str) -> dict[str, Any]:
     return result.unwrap().model_dump(mode="json")
 
 
+@traced("mcp:search_indian_law")
 async def search_indian_law(query: str, k: int = 5) -> dict[str, Any]:
     """Hybrid-search the Indian Contract Act corpus; return the top sections."""
     repo = await _context.law_repo()
@@ -117,6 +120,7 @@ async def search_indian_law(query: str, k: int = 5) -> dict[str, Any]:
     return {"query": query, "sections": sections}
 
 
+@traced("mcp:verify_citation")
 async def verify_citation(claim: str, citation: str) -> dict[str, Any]:
     """Check that a cited section actually exists in the corpus (anti-hallucination)."""
     parsed = _parse_citation(citation)

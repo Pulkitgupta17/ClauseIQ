@@ -23,10 +23,19 @@ class _ApiError(Exception):
         self.code = code
 
 
+class _FakeUsage:
+    def __init__(self, prompt: int, completion: int) -> None:
+        self.prompt_token_count = prompt
+        self.candidates_token_count = completion
+
+
 class _FakeResponse:
-    def __init__(self, *, text: str | None = None, parsed: object = None) -> None:
+    def __init__(
+        self, *, text: str | None = None, parsed: object = None, usage_metadata: object = None
+    ) -> None:
         self.text = text
         self.parsed = parsed
+        self.usage_metadata = usage_metadata
 
 
 class _FakeModels:
@@ -152,6 +161,18 @@ async def test_missing_api_key_is_error(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 # --- factory -----------------------------------------------------------------
+
+
+async def test_generate_records_token_usage() -> None:
+    from clauseiq.infrastructure.observability.usage import usage_scope
+
+    models = _FakeModels(response=_FakeResponse(text="ok", usage_metadata=_FakeUsage(120, 30)))
+    with usage_scope() as totals:
+        result = await _client(models).generate("hi")
+    assert result.is_ok()
+    assert totals.prompt_tokens == 120
+    assert totals.completion_tokens == 30
+    assert totals.cost_usd > 0
 
 
 def test_factory_returns_role_specific_clients() -> None:

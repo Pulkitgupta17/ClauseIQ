@@ -42,7 +42,8 @@ from clauseiq.infrastructure.guardrails.injection_detector import detect_injecti
 from clauseiq.infrastructure.guardrails.input_filter import screen_input
 from clauseiq.infrastructure.guardrails.output_filter import ensure_disclaimer
 from clauseiq.infrastructure.llm.base import LLMClient
-from clauseiq.logging_config import get_logger
+from clauseiq.infrastructure.observability.usage import usage_scope
+from clauseiq.logging_config import ensure_trace, get_logger
 
 log = get_logger(__name__)
 
@@ -143,10 +144,23 @@ class ContractAnalyzer:
         rejection = self._screen(request)
         if rejection is not None:
             return Err(rejection)
-        final: dict[str, Any] = await self._graph.ainvoke(self._initial_state(request))
-        if final.get("error") and not final.get("flags"):
-            return Err(AnalysisError(str(final["error"])))
-        return Ok(ensure_disclaimer(self._build_analysis(request, final)))
+        with ensure_trace() as trace_id, usage_scope() as usage:
+            final: dict[str, Any] = await self._graph.ainvoke(self._initial_state(request))
+            outcome: Result[ContractAnalysis, ClauseIQError] = (
+                Err(AnalysisError(str(final["error"])))
+                if final.get("error") and not final.get("flags")
+                else Ok(ensure_disclaimer(self._build_analysis(request, final)))
+            )
+            log.info(
+                "analysis_complete",
+                trace_id=trace_id,
+                flags=len(final.get("flags", [])),
+                prompt_tokens=usage.prompt_tokens,
+                completion_tokens=usage.completion_tokens,
+                total_tokens=usage.total_tokens,
+                cost_usd=round(usage.cost_usd, 6),
+            )
+        return outcome
 
     async def stream(self, request: ContractAnalysisRequest) -> AsyncIterator[StreamEvent]:
         """Run the pipeline, yielding an event as each agent completes."""
@@ -155,23 +169,41 @@ class ContractAnalyzer:
             yield StreamEvent(event="error", data={"error": rejection.message, **rejection.context})
             return
 
-        initial = self._initial_state(request)
-        yield StreamEvent(event="supervisor_start", data={"contract_id": initial["contract_id"]})
+        with ensure_trace() as trace_id, usage_scope() as usage:
+            initial = self._initial_state(request)
+            yield StreamEvent(
+                event="supervisor_start", data={"contract_id": initial["contract_id"]}
+            )
 
-        final: dict[str, Any] = dict(initial)
-        async for update in self._graph.astream(initial, stream_mode="updates"):
-            for node_name, node_update in update.items():
-                if isinstance(node_update, dict):
-                    final.update(node_update)
-                event_name = NODE_EVENTS.get(node_name)
-                if event_name is not None:
-                    yield StreamEvent(event=event_name, data=_node_summary(node_name, final))
+            final: dict[str, Any] = dict(initial)
+            async for update in self._graph.astream(initial, stream_mode="updates"):
+                for node_name, node_update in update.items():
+                    if isinstance(node_update, dict):
+                        final.update(node_update)
+                    event_name = NODE_EVENTS.get(node_name)
+                    if event_name is not None:
+                        yield StreamEvent(event=event_name, data=_node_summary(node_name, final))
 
-        if final.get("error") and not final.get("flags"):
-            yield StreamEvent(event="error", data={"message": str(final["error"])})
-            return
-        analysis = ensure_disclaimer(self._build_analysis(request, final))
-        yield StreamEvent(event="done", data={"analysis": analysis.model_dump(mode="json")})
+            if final.get("error") and not final.get("flags"):
+                yield StreamEvent(event="error", data={"message": str(final["error"])})
+                return
+            analysis = ensure_disclaimer(self._build_analysis(request, final))
+            log.info(
+                "analysis_complete",
+                trace_id=trace_id,
+                total_tokens=usage.total_tokens,
+                cost_usd=round(usage.cost_usd, 6),
+            )
+            yield StreamEvent(
+                event="done",
+                data={
+                    "analysis": analysis.model_dump(mode="json"),
+                    "usage": {
+                        "total_tokens": usage.total_tokens,
+                        "cost_usd": round(usage.cost_usd, 6),
+                    },
+                },
+            )
 
     def _build_analysis(
         self, request: ContractAnalysisRequest, final: dict[str, Any]

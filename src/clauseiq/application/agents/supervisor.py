@@ -18,6 +18,7 @@ from clauseiq.application.agents.state import AnalysisState
 from clauseiq.application.schemas import SegmentationResult
 from clauseiq.domain.value_objects import ClauseType
 from clauseiq.infrastructure.llm.base import LLMClient
+from clauseiq.infrastructure.observability.langfuse_client import traced
 from clauseiq.logging_config import get_logger
 
 log = get_logger(__name__)
@@ -50,6 +51,7 @@ class SupervisorAgent:
     def __init__(self, llm: LLMClient) -> None:
         self._llm = llm
 
+    @traced("supervisor")
     async def __call__(self, state: AnalysisState) -> dict[str, object]:
         contract_text = state["contract_text"]
         prompt = _PROMPT_TEMPLATE.format(clause_types=_CLAUSE_TYPES, contract_text=contract_text)

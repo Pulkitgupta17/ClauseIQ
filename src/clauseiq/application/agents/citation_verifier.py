@@ -18,6 +18,7 @@ from clauseiq.domain.entities import Citation, RiskFlag
 from clauseiq.domain.exceptions import ValidationError
 from clauseiq.domain.ports import LawRepository
 from clauseiq.domain.value_objects import LawCode, Severity
+from clauseiq.infrastructure.observability.langfuse_client import traced
 from clauseiq.logging_config import get_logger
 
 log = get_logger(__name__)
@@ -54,6 +55,7 @@ class CitationVerifierAgent:
                 )
         return verified
 
+    @traced("citation_verifier")
     async def __call__(self, state: AnalysisState) -> dict[str, object]:
         raw_flags = state.get("raw_flags", [])
         contract_id = state.get("contract_id", "contract")

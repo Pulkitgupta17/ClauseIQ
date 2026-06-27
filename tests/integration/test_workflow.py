@@ -172,6 +172,9 @@ async def test_stream_done_event_carries_serialisable_analysis() -> None:
     analysis = done_events[0].data["analysis"]
     assert analysis["flag_count"] == 1
     assert analysis["flags"][0]["citations"][0]["section_number"] == "27"
+    # Cost is surfaced per request (zero here: the fake LLM reports no usage).
+    assert done_events[0].data["usage"]["total_tokens"] == 0
+    assert done_events[0].data["usage"]["cost_usd"] == 0.0
 
 
 async def test_non_contract_short_circuits() -> None:
