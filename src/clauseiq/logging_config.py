@@ -19,6 +19,7 @@ Usage::
 from __future__ import annotations
 
 import logging
+import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -78,7 +79,9 @@ def configure_logging(*, level: str | None = None, json_logs: bool | None = None
     structlog.configure(
         processors=[*shared_processors, renderer],
         wrapper_class=structlog.make_filtering_bound_logger(level_number),
-        logger_factory=structlog.PrintLoggerFactory(),
+        # Logs go to stderr so stdout stays clean for data (script output) and,
+        # critically, for the MCP stdio JSON-RPC protocol.
+        logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
         cache_logger_on_first_use=True,
     )
     _configured = True

@@ -30,6 +30,7 @@ dependencies = [
 
 [project.scripts]
 clauseiq-ingest-laws = "clauseiq.infrastructure.ingestion.law_ingestor:main"
+clauseiq-mcp = "clauseiq.interfaces.mcp.server:main"
 
 [dependency-groups]
 # Installed by default on `uv sync`. ruff/mypy match the pre-commit pins so the
