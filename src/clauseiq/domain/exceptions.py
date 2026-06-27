@@ -119,6 +119,10 @@ class AnalysisError(ClauseIQError):
     """The contract-analysis pipeline failed to produce a result."""
 
 
+class GuardrailError(ClauseIQError):
+    """Input rejected by a guardrail (not a contract, or a prompt-injection attempt)."""
+
+
 # --- Repositories ------------------------------------------------------------
 
 
@@ -143,6 +147,7 @@ __all__ = [
     "ClauseIQError",
     "ConfigurationError",
     "EmbeddingError",
+    "GuardrailError",
     "IngestionError",
     "LLMError",
     "LawSectionNotFoundError",

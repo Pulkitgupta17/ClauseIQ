@@ -35,9 +35,12 @@ from clauseiq.application.schemas import (
     RiskFlagOut,
 )
 from clauseiq.domain.entities import RiskFlag
-from clauseiq.domain.exceptions import AnalysisError
+from clauseiq.domain.exceptions import AnalysisError, ClauseIQError, GuardrailError
 from clauseiq.domain.ports import LawRepository
 from clauseiq.domain.result import Err, Ok, Result
+from clauseiq.infrastructure.guardrails.injection_detector import detect_injection
+from clauseiq.infrastructure.guardrails.input_filter import screen_input
+from clauseiq.infrastructure.guardrails.output_filter import ensure_disclaimer
 from clauseiq.infrastructure.llm.base import LLMClient
 from clauseiq.logging_config import get_logger
 
@@ -121,17 +124,37 @@ class ContractAnalyzer:
             "error": None,
         }
 
+    def _screen(self, request: ContractAnalysisRequest) -> GuardrailError | None:
+        """Run input guardrails; return a :class:`GuardrailError` if rejected."""
+        injection = detect_injection(request.contract_text)
+        if injection.detected:
+            log.warning("guardrail_injection_detected", matches=list(injection.matches))
+            return GuardrailError("prompt_injection_detected", matches=list(injection.matches))
+        assessment = screen_input(request.contract_text)
+        if not assessment.accepted:
+            log.info("guardrail_input_rejected", reason=assessment.reason)
+            return GuardrailError("not_a_contract", reason=assessment.reason)
+        return None
+
     async def analyze(
         self, request: ContractAnalysisRequest
-    ) -> Result[ContractAnalysis, AnalysisError]:
-        """Run the full pipeline and return the analysis (or an error)."""
+    ) -> Result[ContractAnalysis, ClauseIQError]:
+        """Run guardrails + the full pipeline and return the analysis (or an error)."""
+        rejection = self._screen(request)
+        if rejection is not None:
+            return Err(rejection)
         final: dict[str, Any] = await self._graph.ainvoke(self._initial_state(request))
         if final.get("error") and not final.get("flags"):
             return Err(AnalysisError(str(final["error"])))
-        return Ok(self._build_analysis(request, final))
+        return Ok(ensure_disclaimer(self._build_analysis(request, final)))
 
     async def stream(self, request: ContractAnalysisRequest) -> AsyncIterator[StreamEvent]:
         """Run the pipeline, yielding an event as each agent completes."""
+        rejection = self._screen(request)
+        if rejection is not None:
+            yield StreamEvent(event="error", data={"error": rejection.message, **rejection.context})
+            return
+
         initial = self._initial_state(request)
         yield StreamEvent(event="supervisor_start", data={"contract_id": initial["contract_id"]})
 
@@ -147,7 +170,7 @@ class ContractAnalyzer:
         if final.get("error") and not final.get("flags"):
             yield StreamEvent(event="error", data={"message": str(final["error"])})
             return
-        analysis = self._build_analysis(request, final)
+        analysis = ensure_disclaimer(self._build_analysis(request, final))
         yield StreamEvent(event="done", data={"analysis": analysis.model_dump(mode="json")})
 
     def _build_analysis(

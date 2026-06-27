@@ -15,7 +15,13 @@ from fastapi.testclient import TestClient
 from clauseiq.application.schemas import ContractAnalysis, LawSectionOut, RiskFlagOut
 from clauseiq.application.workflows import StreamEvent
 from clauseiq.domain.entities import Citation
-from clauseiq.domain.exceptions import AnalysisError, LawSectionNotFoundError, RepositoryError
+from clauseiq.domain.exceptions import (
+    AnalysisError,
+    ClauseIQError,
+    GuardrailError,
+    LawSectionNotFoundError,
+    RepositoryError,
+)
 from clauseiq.domain.result import Err, Ok, Result
 from clauseiq.domain.value_objects import Jurisdiction, LawCode
 from clauseiq.interfaces.api.dependencies import get_contract_analyzer, get_law_repository
@@ -56,10 +62,13 @@ _EVENTS = [
 
 
 class _StubAnalyzer:
-    def __init__(self, *, error: str | None = None) -> None:
+    def __init__(self, *, error: str | None = None, guardrail: str | None = None) -> None:
         self._error = error
+        self._guardrail = guardrail
 
-    async def analyze(self, request: object) -> Result[ContractAnalysis, AnalysisError]:
+    async def analyze(self, request: object) -> Result[ContractAnalysis, ClauseIQError]:
+        if self._guardrail is not None:
+            return Err(GuardrailError(self._guardrail))
         if self._error is not None:
             return Err(AnalysisError(self._error))
         return Ok(_ANALYSIS)
@@ -134,6 +143,15 @@ def test_analyze_missing_key_maps_to_503() -> None:
             "/api/v1/analyze", json={"contract_text": _CONTRACT, "jurisdiction": "IN-MH"}
         )
     assert response.status_code == 503
+
+
+def test_analyze_guardrail_rejection_maps_to_422() -> None:
+    with _client(analyzer=_StubAnalyzer(guardrail="not_a_contract")) as client:
+        response = client.post(
+            "/api/v1/analyze", json={"contract_text": _CONTRACT, "jurisdiction": "IN-MH"}
+        )
+    assert response.status_code == 422
+    assert response.json()["detail"]["reason"] == "not_a_contract"
 
 
 def test_analyze_stream_emits_ordered_sse() -> None:

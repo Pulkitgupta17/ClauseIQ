@@ -27,6 +27,7 @@ from clauseiq.application.schemas import (
     LawSectionOut,
 )
 from clauseiq.application.workflows import ContractAnalyzer
+from clauseiq.domain.exceptions import GuardrailError
 from clauseiq.domain.ports import LawRepository
 from clauseiq.domain.value_objects import LawCode
 from clauseiq.interfaces.api.dependencies import get_contract_analyzer, get_law_repository
@@ -57,10 +58,15 @@ async def analyze(request: ContractAnalysisRequest, analyzer: AnalyzerDep) -> Co
     """Analyze a contract and return structured risk flags with verified citations."""
     result = await analyzer.analyze(request)
     if result.is_err():
-        message = result.unwrap_err().message
-        status = 503 if "api_key" in message else 502
+        error = result.unwrap_err()
+        if isinstance(error, GuardrailError):
+            raise HTTPException(
+                status_code=422,
+                detail={"error": "rejected", "reason": error.message, **error.context},
+            )
+        status = 503 if "api_key" in error.message else 502
         raise HTTPException(
-            status_code=status, detail={"error": "analysis_failed", "reason": message}
+            status_code=status, detail={"error": "analysis_failed", "reason": error.message}
         )
     return result.unwrap()
 
