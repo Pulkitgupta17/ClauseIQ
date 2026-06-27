@@ -23,7 +23,7 @@ import json
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _UNVERSIONED = "unversioned"
@@ -59,7 +59,9 @@ class Settings(BaseSettings):
     )
 
     # --- LLMs (Google AI Studio, free tier) ---------------------------------
-    gemini_api_key: str = ""
+    # SecretStr so the key never appears in logs, reprs, or tracebacks; read it
+    # explicitly with `.get_secret_value()` only where the SDK needs it.
+    gemini_api_key: SecretStr = SecretStr("")
     orchestration_model: str = "gemini-2.0-flash"
     analysis_model: str = "gemini-2.5-pro"
 

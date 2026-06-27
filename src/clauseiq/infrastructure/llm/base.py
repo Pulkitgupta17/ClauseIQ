@@ -88,7 +88,7 @@ class GeminiClient:
 
     def _ensure_client(self) -> Any:  # returns google-genai Client (untyped SDK)
         if self._client is None:
-            key = self._api_key or settings.gemini_api_key
+            key = self._api_key or settings.gemini_api_key.get_secret_value()
             if not key:
                 raise ConfigurationError("gemini_api_key_missing", model=self.model_name)
             from google import genai
