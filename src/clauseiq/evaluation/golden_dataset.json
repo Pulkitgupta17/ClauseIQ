@@ -1,0 +1,73 @@
+{
+  "version": "golden-v1-2026-06-27",
+  "cases": [
+    {
+      "id": "rental-01",
+      "contract_type": "rental",
+      "title": "Residential lease with lock-in and penal forfeiture",
+      "contract_text": "RESIDENTIAL LEASE AGREEMENT\n\n1. Term & Lock-in. This lease is for 11 months. The Tenant is locked in for the entire term; if the Tenant vacates early for any reason, the entire security deposit is forfeited and the remaining rent for all 11 months becomes immediately due and payable.\n\n2. Security Deposit. The Tenant shall deposit an amount equal to six (6) months' rent, refundable at the Landlord's sole discretion.\n\n3. Termination. The Landlord may terminate this lease at any time with 24 hours' notice. The Tenant must give three (3) months' written notice to terminate.\n\n4. Repairs. The Tenant shall bear the cost of all repairs to the premises, including structural and major repairs, regardless of cause.\n\n5. Late Fee. A penalty of 10% of the monthly rent shall apply for each day rent is delayed.\n\n6. Restraint. For one year after vacating, the Tenant shall not rent or own any residential property within the same city.",
+      "expected_findings": [
+        {
+          "clause_type": "lock_in",
+          "min_severity": 4,
+          "expected_sections": ["74"],
+          "key_points": ["forfeiting the entire deposit plus all remaining rent is a penal stipulation", "recoverable only as reasonable compensation, not as a penalty, under s.74"]
+        },
+        {
+          "clause_type": "penalty",
+          "min_severity": 4,
+          "expected_sections": ["74"],
+          "key_points": ["10% per day late fee is a penalty", "only reasonable compensation for actual loss is recoverable"]
+        },
+        {
+          "clause_type": "non_compete",
+          "min_severity": 3,
+          "expected_sections": ["27"],
+          "key_points": ["one-year restraint on renting elsewhere is a restraint of trade", "void under s.27"]
+        },
+        {
+          "clause_type": "termination",
+          "min_severity": 3,
+          "expected_sections": [],
+          "key_points": ["asymmetric notice (24 hours vs three months) is one-sided and unconscionable"]
+        }
+      ],
+      "expected_summary": "The lease is heavily one-sided against the tenant. The lock-in with forfeiture of the entire deposit plus all remaining rent, and the 10%-per-day late fee, are penal stipulations recoverable only as reasonable compensation for actual loss under Section 74 of the Indian Contract Act, 1872. The one-year restraint on renting elsewhere is a restraint of trade, void under Section 27. The asymmetric termination notice (24 hours for the landlord versus three months for the tenant) is unconscionable. Highest severity: high.",
+      "notes": "Worked example provided by the assistant; verify section numbers against the corpus."
+    },
+    {
+      "id": "employment-01",
+      "contract_type": "employment",
+      "title": "Employment offer with post-termination non-compete and salary clawback",
+      "contract_text": "EMPLOYMENT AGREEMENT\n\n1. Non-Compete. For two (2) years after the end of employment for any reason, the Employee shall not work for, advise, or start any business competing with the Company anywhere in India.\n\n2. Resignation Penalty. If the Employee resigns before completing three years, all accrued and unpaid salary is forfeited and the Employee shall pay the Company a sum equal to three (3) months' salary as liquidated damages.\n\n3. Intellectual Property. The Employee assigns to the Company all inventions, designs, and creative works conceived at any time during employment, including personal projects developed on the Employee's own time and unrelated to the Company's business.\n\n4. Termination. The Company may terminate the Employee at any time without notice or cause. The Employee must give three (3) months' notice.\n\n5. Governing Law. This agreement is governed by the laws of India.",
+      "expected_findings": [
+        {
+          "clause_type": "non_compete",
+          "min_severity": 5,
+          "expected_sections": ["27"],
+          "key_points": ["a post-employment non-compete is void under s.27", "Indian law does not enforce restraints of trade after employment ends"]
+        },
+        {
+          "clause_type": "penalty",
+          "min_severity": 4,
+          "expected_sections": ["27", "74"],
+          "key_points": ["forfeiting accrued salary and a three-month penalty on resignation is penal and a restraint", "earned wages cannot be forfeited"]
+        },
+        {
+          "clause_type": "ip_assignment",
+          "min_severity": 3,
+          "expected_sections": [],
+          "key_points": ["assigning unrelated personal inventions developed on own time is overbroad"]
+        },
+        {
+          "clause_type": "termination",
+          "min_severity": 3,
+          "expected_sections": [],
+          "key_points": ["termination without notice for the Company but three months for the Employee is asymmetric"]
+        }
+      ],
+      "expected_summary": "The post-employment non-compete (two years, all-India) is void under Section 27 of the Indian Contract Act, 1872 — Indian law does not enforce restraints of trade after employment ends. Forfeiting accrued salary and charging a three-month penalty on resignation are penal and unenforceable (Sections 27 and 74); earned wages cannot be forfeited. Assigning all inventions, including unrelated personal projects developed on the employee's own time, is overbroad. Termination is asymmetric in the employer's favour. Highest severity: critical.",
+      "notes": "Worked example provided by the assistant; verify section numbers against the corpus."
+    }
+  ]
+}
