@@ -126,7 +126,9 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 minversion = "8.0"
 addopts = "-ra --strict-markers --strict-config"
-testpaths = ["tests"]
+# Default run = unit + integration. The eval suite is run explicitly
+# (`pytest tests/evaluation/`) — it needs the eval group and a Gemini key.
+testpaths = ["tests/unit", "tests/integration"]
 # Import the package from src/ directly so test collection never depends on the
 # (occasionally stale) editable install being rebuilt.
 pythonpath = ["src"]
