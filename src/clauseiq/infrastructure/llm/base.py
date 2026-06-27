@@ -19,6 +19,7 @@ types for the client/response/config objects; values are narrowed before use.
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import Any, Protocol, TypeVar, runtime_checkable
 
 from pydantic import BaseModel
@@ -34,6 +35,43 @@ TModel = TypeVar("TModel", bound=BaseModel)
 
 # HTTP status codes worth retrying (rate limit + transient server errors).
 _TRANSIENT_CODES = frozenset({429, 500, 502, 503, 504})
+
+# Gemini 429s carry a server-suggested wait, either as a structured
+# ``RetryInfo.retryDelay`` ("40s") or in the message ("Please retry in 40.8s").
+_RETRY_DELAY_RE = re.compile(r"retryDelay['\"]?\s*[:=]\s*['\"]?(\d+(?:\.\d+)?)s")
+_RETRY_HINT_RE = re.compile(r"retry in (\d+(?:\.\d+)?)\s*s")
+
+
+def _parse_duration(raw: object) -> float | None:
+    """Parse a protobuf duration string like ``"40s"`` (or a number) to seconds."""
+    if isinstance(raw, int | float):
+        return float(raw)
+    if isinstance(raw, str):
+        match = re.fullmatch(r"(\d+(?:\.\d+)?)s?", raw.strip())
+        if match:
+            return float(match.group(1))
+    return None
+
+
+def retry_delay_seconds(exc: Exception) -> float | None:
+    """Extract the server-suggested retry delay from a Gemini API error, if any.
+
+    Prefers the structured ``RetryInfo.retryDelay`` in the error details, then
+    falls back to parsing the message text. Returns ``None`` when no hint exists.
+    """
+    details = getattr(exc, "details", None)
+    if isinstance(details, list):
+        for item in details:
+            if isinstance(item, dict) and "RetryInfo" in str(item.get("@type", "")):
+                parsed = _parse_duration(item.get("retryDelay"))
+                if parsed is not None:
+                    return parsed
+    text = str(exc)
+    for pattern in (_RETRY_DELAY_RE, _RETRY_HINT_RE):
+        match = pattern.search(text)
+        if match:
+            return float(match.group(1))
+    return None
 
 
 @runtime_checkable
@@ -68,7 +106,10 @@ class GeminiClient:
         api_key: Overrides ``settings.gemini_api_key`` when provided.
         client: An injected SDK client (for testing); built lazily otherwise.
         max_retries: Attempts before giving up on transient failures.
-        base_delay: Initial backoff delay in seconds (doubles each retry).
+        base_delay: Initial backoff delay in seconds (doubles each retry); used
+            only when the server gives no retry hint.
+        max_retry_delay: Cap on a server-suggested ``RetryInfo.retryDelay`` so a
+            large quota-reset hint can't hang a request.
     """
 
     def __init__(
@@ -79,12 +120,16 @@ class GeminiClient:
         client: Any = None,  # google-genai Client; untyped SDK
         max_retries: int = 3,
         base_delay: float = 0.5,
+        max_retry_delay: float = 30.0,
     ) -> None:
         self.model_name = model_name
         self._api_key = api_key
         self._client: Any = client
         self._max_retries = max_retries
         self._base_delay = base_delay
+        # Cap on how long we'll honour a server-suggested retry delay, so a huge
+        # quota-reset hint can't hang a request indefinitely.
+        self._max_retry_delay = max_retry_delay
 
     def _ensure_client(self) -> Any:  # returns google-genai Client (untyped SDK)
         if self._client is None:
@@ -131,8 +176,19 @@ class GeminiClient:
             except Exception as exc:  # google-genai boundary
                 code = getattr(exc, "code", None)
                 if self._is_transient(code) and attempt < self._max_retries - 1:
-                    log.warning("llm_retry", model=self.model_name, attempt=attempt, code=code)
-                    await asyncio.sleep(delay)
+                    server_delay = retry_delay_seconds(exc)
+                    wait = min(
+                        delay if server_delay is None else server_delay, self._max_retry_delay
+                    )
+                    log.warning(
+                        "llm_retry",
+                        model=self.model_name,
+                        attempt=attempt,
+                        code=code,
+                        wait_s=round(wait, 2),
+                        server_hinted=server_delay is not None,
+                    )
+                    await asyncio.sleep(wait)
                     delay *= 2
                     continue
                 log.error("llm_call_failed", model=self.model_name, code=code, error=str(exc))
@@ -177,4 +233,4 @@ class GeminiClient:
         return Ok(model)
 
 
-__all__ = ["GeminiClient", "LLMClient", "TModel"]
+__all__ = ["GeminiClient", "LLMClient", "TModel", "retry_delay_seconds"]

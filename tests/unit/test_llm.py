@@ -8,7 +8,7 @@ import pytest
 from pydantic import BaseModel
 
 from clauseiq.domain.result import Ok
-from clauseiq.infrastructure.llm.base import GeminiClient, LLMClient
+from clauseiq.infrastructure.llm.base import GeminiClient, LLMClient, retry_delay_seconds
 from clauseiq.infrastructure.llm.factory import LLMRole, get_llm_client
 
 
@@ -18,8 +18,8 @@ class _Demo(BaseModel):
 
 
 class _ApiError(Exception):
-    def __init__(self, code: int) -> None:
-        super().__init__(f"http {code}")
+    def __init__(self, code: int, message: str | None = None) -> None:
+        super().__init__(message or f"http {code}")
         self.code = code
 
 
@@ -111,8 +111,41 @@ async def test_does_not_retry_non_transient() -> None:
     assert result.unwrap_err().context.get("status_code") == 400
 
 
-async def test_missing_api_key_is_error() -> None:
-    # No injected client and no configured key -> typed failure, not a crash.
+def test_retry_delay_from_structured_details() -> None:
+    exc = _ApiError(429)
+    exc.details = [  # type: ignore[attr-defined]
+        {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "12s"}
+    ]
+    assert retry_delay_seconds(exc) == 12.0
+
+
+def test_retry_delay_from_message_text() -> None:
+    assert retry_delay_seconds(_ApiError(429, "429 ... 'retryDelay': '40s' ...")) == 40.0
+    assert retry_delay_seconds(_ApiError(429, "Please retry in 8.5s")) == 8.5
+
+
+def test_retry_delay_absent_returns_none() -> None:
+    assert retry_delay_seconds(_ApiError(503, "transient blip")) is None
+
+
+async def test_retry_honours_server_delay() -> None:
+    # A tiny server-hinted delay is parsed and used (kept ~0 so the test is fast).
+    models = _FakeModels(
+        response=_FakeResponse(text="ok"),
+        errors=[_ApiError(429, "rate limited; 'retryDelay': '0s'")],
+    )
+    result = await _client(models).generate("hi")
+    assert result.is_ok()
+    assert models.calls == 2
+
+
+async def test_missing_api_key_is_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Force an empty key (independent of any local .env) -> typed failure, not a crash.
+    from pydantic import SecretStr
+
+    from clauseiq.config import settings
+
+    monkeypatch.setattr(settings, "gemini_api_key", SecretStr(""))
     result = await GeminiClient("gemini-test").generate("hi")
     assert result.is_err()
     assert result.unwrap_err().message == "api_key_missing"
