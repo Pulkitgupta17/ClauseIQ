@@ -115,6 +115,10 @@ class LowConfidenceError(ClauseIQError):
     """Retrieval returned results below the configured confidence threshold."""
 
 
+class AnalysisError(ClauseIQError):
+    """The contract-analysis pipeline failed to produce a result."""
+
+
 # --- Repositories ------------------------------------------------------------
 
 
@@ -134,6 +138,7 @@ class UnwrapError(ClauseIQError):
 
 
 __all__ = [
+    "AnalysisError",
     "ChunkingError",
     "ClauseIQError",
     "ConfigurationError",

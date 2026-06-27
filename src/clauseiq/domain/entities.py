@@ -124,6 +124,18 @@ class Citation:
         """Human-facing citation label, e.g. ``"Section 23, Indian Contract Act, 1872"``."""
         return f"Section {self.section_number}, {self.law_code.full_title}"
 
+    @property
+    def amendment_note(self) -> str | None:
+        """Caveat to display when amendment history is unknown, else ``None``.
+
+        The corpus does not track amendment history; when ``last_amended`` is
+        unset, callers should surface this so a citation never implies it
+        reflects the current, amended law.
+        """
+        if self.last_amended is not None:
+            return None
+        return "Amendment history not tracked — verify current law for time-sensitive matters."
+
 
 @dataclass(frozen=True, slots=True)
 class Clause:
