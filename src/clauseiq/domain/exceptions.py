@@ -103,6 +103,10 @@ class EmbeddingError(ClauseIQError):
     """The embedding model failed to produce vectors."""
 
 
+class LLMError(ClauseIQError):
+    """An LLM call failed: generation, structured parsing, missing key, or rate limit."""
+
+
 class RetrievalError(ClauseIQError):
     """Retrieval failed or returned nothing usable."""
 
@@ -135,6 +139,7 @@ __all__ = [
     "ConfigurationError",
     "EmbeddingError",
     "IngestionError",
+    "LLMError",
     "LawSectionNotFoundError",
     "LowConfidenceError",
     "PDFParsingError",
