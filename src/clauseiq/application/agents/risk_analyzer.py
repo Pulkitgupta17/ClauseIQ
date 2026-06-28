@@ -19,6 +19,7 @@ from typing import ClassVar
 from clauseiq.application.agents.state import AnalysisState
 from clauseiq.application.schemas import RiskAnalysisResult, SegmentedClause
 from clauseiq.domain.entities import ScoredChunk
+from clauseiq.domain.value_objects import ClauseType
 from clauseiq.infrastructure.llm.base import LLMClient
 from clauseiq.infrastructure.observability.langfuse_client import traced
 from clauseiq.logging_config import get_logger
@@ -41,11 +42,15 @@ _SYSTEM = (
     "section applies, return an empty citations list rather than inventing one."
 )
 
+_CLAUSE_TYPE_VOCAB = ", ".join(member.value for member in ClauseType)
+
 _INSTRUCTION = (
     "Return a flag for each RISKY clause (skip benign ones). Each flag needs: "
     "clause_index, clause_type, severity_score (1-5), a concise rationale, "
     "confidence (0-1), an optional suggested_action, and citations drawn only from "
-    "the law shown under that clause.\n\n"
+    "the law shown under that clause.\n"
+    f"clause_type MUST be exactly one of: {_CLAUSE_TYPE_VOCAB}. "
+    "Pick the closest category; use 'other' only if none genuinely fit.\n\n"
 )
 
 
