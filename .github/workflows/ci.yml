@@ -74,3 +74,28 @@ jobs:
           CLAUSEIQ_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           HF_HUB_DISABLE_XET: "1"
         run: uv run pytest tests/evaluation/ -v
+
+  frontend:
+    name: Frontend (biome, test, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Biome (lint + format)
+        run: pnpm biome
+      - name: Vitest
+        run: pnpm test
+      - name: Type-check + build
+        run: pnpm build
