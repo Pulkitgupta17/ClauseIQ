@@ -103,7 +103,7 @@ class GeminiClient:
     """Async Gemini client implementing :class:`LLMClient`.
 
     Args:
-        model_name: Gemini model id (e.g. ``"gemini-2.0-flash"``).
+        model_name: Gemini model id (e.g. ``"gemini-2.5-flash"``).
         api_key: Overrides ``settings.gemini_api_key`` when provided.
         client: An injected SDK client (for testing); built lazily otherwise.
         max_retries: Attempts before giving up on transient failures.

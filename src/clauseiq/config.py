@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     # SecretStr so the key never appears in logs, reprs, or tracebacks; read it
     # explicitly with `.get_secret_value()` only where the SDK needs it.
     gemini_api_key: SecretStr = SecretStr("")
-    orchestration_model: str = "gemini-2.0-flash"
+    orchestration_model: str = "gemini-2.5-flash"
     analysis_model: str = "gemini-2.5-pro"
 
     # --- Embeddings (local, free) -------------------------------------------
