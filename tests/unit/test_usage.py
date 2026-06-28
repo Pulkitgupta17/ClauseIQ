@@ -48,3 +48,15 @@ def test_usage_scope_accumulates_and_resets() -> None:
 def test_record_usage_is_noop_without_scope() -> None:
     record_usage("gemini-2.0-flash", 100, 100)  # must not raise
     assert current_usage() is None
+
+
+def test_nested_usage_scopes_accumulate_into_parent() -> None:
+    # An outer scope (e.g. an eval runner) must see usage recorded inside an inner
+    # scope (e.g. analyze() opening its own scope).
+    with usage_scope() as outer:
+        with usage_scope() as inner:
+            record_usage("gemini-2.5-pro", 1000, 500)
+            assert inner.total_tokens == 1500
+        assert current_usage() is outer
+        assert outer.total_tokens == 1500
+        assert outer.cost_usd > 0

@@ -48,6 +48,13 @@ class UsageTotals:
         self.total_tokens += prompt_tokens + completion_tokens
         self.cost_usd += cost_for(model, prompt_tokens, completion_tokens)
 
+    def add(self, other: UsageTotals) -> None:
+        """Accumulate another totals into this one (used when nested scopes merge up)."""
+        self.prompt_tokens += other.prompt_tokens
+        self.completion_tokens += other.completion_tokens
+        self.total_tokens += other.total_tokens
+        self.cost_usd += other.cost_usd
+
     def snapshot(self) -> UsageTotals:
         """Return an immutable copy of the current totals."""
         return UsageTotals(
@@ -81,13 +88,21 @@ def current_usage() -> UsageTotals | None:
 
 @contextmanager
 def usage_scope() -> Iterator[UsageTotals]:
-    """Install a fresh usage accumulator for the duration of the block."""
+    """Install a fresh usage accumulator for the duration of the block.
+
+    Nested scopes accumulate into their parent on exit, so an outer scope sees the
+    usage recorded inside inner scopes (e.g. an eval runner wrapping ``analyze()``,
+    which opens its own scope).
+    """
+    parent = _usage_var.get()
     totals = UsageTotals()
     token = _usage_var.set(totals)
     try:
         yield totals
     finally:
         _usage_var.reset(token)
+        if parent is not None:
+            parent.add(totals)
 
 
 __all__ = [
