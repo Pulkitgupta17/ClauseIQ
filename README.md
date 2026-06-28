@@ -6,7 +6,7 @@
 
 Runs as a streaming web app **and** as an MCP server inside Claude Desktop.
 
-[Live app](https://clauseiq.vercel.app) · [Architecture](docs/ARCHITECTURE.md) · [Eval methodology](docs/EVAL_METHODOLOGY.md) · [Deploy](docs/DEPLOY.md) · [MCP install](docs/MCP_INSTALL.md)
+**[▶ Live app](https://clauseiq-app-fawn.vercel.app)** · [Architecture](docs/ARCHITECTURE.md) · [Eval methodology](docs/EVAL_METHODOLOGY.md) · [Deploy](docs/DEPLOY.md) · [MCP install](docs/MCP_INSTALL.md)
 
 </div>
 
@@ -30,7 +30,8 @@ Indian Contract Act, 1872.
 
 > Add a GIF/screenshots here: `docs/assets/demo.gif`, `docs/assets/analysis.png`.
 
-- **Web app:** https://clauseiq.vercel.app — paste a contract or upload a PDF and watch the agents work live.
+- **Web app:** **https://clauseiq-app-fawn.vercel.app** — paste a contract or upload a PDF and watch the agents work live.
+- **API:** `https://clauseiq-api-124621416027.asia-south1.run.app` (Cloud Run; `GET /health` for liveness, `/docs` for the OpenAPI UI).
 - **In Claude Desktop (MCP):** ask *"analyse this contract for unfair clauses"* — see [docs/MCP_INSTALL.md](docs/MCP_INSTALL.md).
 
 ## System architecture
