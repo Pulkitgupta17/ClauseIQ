@@ -1,6 +1,6 @@
-# syntax=docker/dockerfile:1
 # Three stages: a builder that installs deps with uv, an indexer that bakes the
 # ChromaDB vector index + embedding-model cache at build time, and a slim runtime.
+# (No BuildKit cache-mounts — Cloud Build's classic docker builder doesn't support them.)
 
 FROM python:3.11-slim AS builder
 
@@ -12,13 +12,11 @@ WORKDIR /app
 
 # Install runtime dependencies first (cached layer keyed on the lockfile).
 COPY pyproject.toml uv.lock README.md ./
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-install-project
+RUN uv sync --frozen --no-dev --no-install-project
 
 # Install the project itself (editable, src layout).
 COPY src ./src
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev
 
 
 # Bake the vector index and cache the embedding model (bake-at-build: no runtime
