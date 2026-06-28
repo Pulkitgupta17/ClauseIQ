@@ -111,6 +111,9 @@ async def test_citation_accuracy_rejects_unfaithful_snippet() -> None:
 @pytest.mark.evaluation
 async def test_golden_dataset_produces_scored_report() -> None:
     """Full run over the golden dataset; needs real Gemini for LLM-judged metrics."""
+    if not settings.gemini_api_key.get_secret_value():
+        pytest.skip("GEMINI_API_KEY not set; skipping live LLM-judged evaluation")
+
     from clauseiq.infrastructure.llm.factory import LLMRole, get_llm_client
     from clauseiq.infrastructure.repositories.law import build_law_repository
 
