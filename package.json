@@ -1,0 +1,6 @@
+{
+  "name": "clauseiq",
+  "private": true,
+  "description": "Root marker so Vercel uses the matching pnpm (the frontend app lives in ./frontend).",
+  "packageManager": "pnpm@11.9.0"
+}
