@@ -27,3 +27,5 @@ scripts/
 .env
 .env.*
 !.env.example
+claude*.prompt
+claude*.md

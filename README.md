@@ -6,7 +6,7 @@
 
 Runs as a streaming web app **and** as an MCP server inside Claude Desktop.
 
-**[▶ Live app](https://clauseiq-app-fawn.vercel.app)** · [Architecture](docs/ARCHITECTURE.md) · [Eval methodology](docs/EVAL_METHODOLOGY.md) · [Deploy](docs/DEPLOY.md) · [MCP install](docs/MCP_INSTALL.md)
+**[▶ Live app](https://clauseiq-app-fawn.vercel.app)** · [Install into Claude Desktop (MCP)](docs/MCP_INSTALL.md)
 
 </div>
 
@@ -60,8 +60,7 @@ flowchart LR
 
 Hybrid retrieval fuses dense vectors (ChromaDB) and lexical BM25 via Reciprocal
 Rank Fusion. The **Citation Verifier** is the anti-hallucination guarantee: any
-cited section that isn't in the corpus is dropped before you ever see it. Full
-detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+cited section that isn't in the corpus is dropped before you ever see it.
 
 ## Key design decisions
 
@@ -93,9 +92,9 @@ detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Evaluation results
 
-Measured by [DeepEval](docs/EVAL_METHODOLOGY.md) over the full 20-case golden
-dataset (5 each: rental, employment, NDA, vendor). LLM-judged metrics use Gemini
-as judge; **Citation Accuracy is deterministic** (checked against the statute).
+Measured with DeepEval over the full 20-case golden dataset (5 each: rental,
+employment, NDA, vendor). LLM-judged metrics use Gemini as judge; **Citation
+Accuracy is deterministic** (checked against the statute).
 
 | Metric | Score | Gate | Type |
 |---|---|---|---|
@@ -112,7 +111,7 @@ anti-hallucination guarantee plus grounding. The rest are reported for insight.
 > † Contextual Recall compares the *gold summary* against the *raw statute snippets*
 > cited, which structurally understates it (the summary states legal conclusions not
 > verbatim in the statute) — it's not a retrieval failure, as the perfect Citation
-> Accuracy and 0.90 Faithfulness show. See [docs/EVAL_METHODOLOGY.md](docs/EVAL_METHODOLOGY.md).
+> Accuracy and 0.90 Faithfulness show.
 >
 > Scores are produced by `tests/evaluation/` and gated in CI.
 
@@ -171,8 +170,8 @@ cd frontend && pnpm install && pnpm dev        # http://localhost:5173
 
 API docs at http://localhost:8000/docs. Run the test suite with `uv run pytest`.
 
-**Deploy:** backend on Cloud Run, frontend on Vercel, Gemini on Vertex AI with
-AI-Studio fallback — see **[docs/DEPLOY.md](docs/DEPLOY.md)**.
+**Deployed on** Google Cloud Run (backend) and Vercel (frontend), with Gemini on
+Vertex AI.
 
 ## Install into Claude Desktop (MCP)
 

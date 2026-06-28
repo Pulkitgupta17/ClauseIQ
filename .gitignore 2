@@ -49,15 +49,3 @@ Thumbs.db
 node_modules/
 frontend/dist/
 frontend/.vite/
-
-# --- Local-only notes and tooling (kept on disk, never published) -----------
-.claude/
-CLAUDE.md
-*.prompt
-.deepeval/
-docs/ARCHITECTURE.md
-docs/EVAL_METHODOLOGY.md
-docs/DEPLOY.md
-docs/DEMO_SCRIPT.md
-docs/LAUNCH_POST.md
-docs/components/
