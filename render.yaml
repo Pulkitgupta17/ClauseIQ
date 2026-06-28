@@ -1,0 +1,21 @@
+# Render Blueprint for the ClauseIQ backend.
+# The image bakes the ChromaDB index at build time, so no persistent disk is
+# needed and it runs on the free tier. Deploys are triggered from CI (deploy.yml)
+# via a deploy hook; set autoDeploy true if you prefer Render's own git trigger.
+services:
+  - type: web
+    name: clauseiq-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: singapore
+    healthCheckPath: /healthz
+    autoDeploy: false
+    envVars:
+      # Set the secret value in the Render dashboard (do not commit it).
+      - key: CLAUSEIQ_GEMINI_API_KEY
+        sync: false
+      - key: CLAUSEIQ_ENVIRONMENT
+        value: prod
+      - key: CLAUSEIQ_CORS_ALLOWED_ORIGINS
+        value: '["https://clauseiq.vercel.app"]'

@@ -43,8 +43,9 @@ jobs:
         run: uv run pytest tests/integration -q
 
       # Steps 5 & 6 — evaluation suite + EVAL GATE.
-      # The evaluation test asserts Faithfulness >= 0.85 and Context Recall >= 0.80
-      # (settings.*_threshold), so a regression fails the job. It runs only when a
+      # The evaluation test asserts Citation Accuracy >= 0.90 and Faithfulness >= 0.85,
+      # so a regression fails the job. Contextual Recall/Precision are reported but
+      # informational (see docs/EVAL_METHODOLOGY.md). The gate runs only when a
       # GEMINI_API_KEY secret is configured; otherwise the deterministic metrics run
       # and the live LLM-judged gate skips cleanly.
       - name: Evaluation suite + eval gate

@@ -21,6 +21,7 @@ frontend/
 docs/
 tests/
 scripts/
+!scripts/ingest_laws.py
 *.md
 !README.md
 .env
