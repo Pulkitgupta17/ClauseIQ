@@ -94,6 +94,14 @@ class Settings(BaseSettings):
     faithfulness_threshold: float = Field(default=0.85, ge=0.0, le=1.0)
     context_recall_threshold: float = Field(default=0.80, ge=0.0, le=1.0)
 
+    # --- Web / CORS ----------------------------------------------------------
+    # Origins allowed to call the API from a browser. Defaults cover the Vite dev
+    # server (5173) and preview (4173); set CLAUSEIQ_CORS_ALLOWED_ORIGINS (JSON
+    # list) for deployed frontends. Never use "*" with credentials.
+    cors_allowed_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:5173", "http://localhost:4173"],
+    )
+
     # --- Runtime / logging ---------------------------------------------------
     log_level: str = "INFO"
     log_json: bool = True

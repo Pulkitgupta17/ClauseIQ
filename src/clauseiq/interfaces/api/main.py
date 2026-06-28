@@ -20,6 +20,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
 from clauseiq import __version__
@@ -61,6 +62,17 @@ def create_app() -> FastAPI:
         version=__version__,
         summary="Multi-agent analysis of Indian contracts with cited law.",
         lifespan=lifespan,
+    )
+
+    # CORS for browser clients (the React app). Added last so it runs outermost,
+    # ensuring preflight OPTIONS requests get the headers before anything else.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_allowed_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["X-Trace-Id"],
     )
 
     @app.middleware("http")
