@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+from collections.abc import Sequence
 from typing import Any, Protocol, TypeVar, runtime_checkable
 
 from pydantic import BaseModel
@@ -119,6 +120,7 @@ class GeminiClient:
         *,
         api_key: str | None = None,
         client: Any = None,  # google-genai Client; untyped SDK
+        providers: Sequence[tuple[str, Any]] | None = None,  # (label, client) for tests
         max_retries: int = 3,
         base_delay: float = 0.5,
         max_retry_delay: float = 30.0,
@@ -126,21 +128,61 @@ class GeminiClient:
         self.model_name = model_name
         self._api_key = api_key
         self._client: Any = client
+        self._injected_providers = list(providers) if providers is not None else None
+        self._resolved: list[tuple[str, Any]] | None = None
         self._max_retries = max_retries
         self._base_delay = base_delay
         # Cap on how long we'll honour a server-suggested retry delay, so a huge
         # quota-reset hint can't hang a request indefinitely.
         self._max_retry_delay = max_retry_delay
 
-    def _ensure_client(self) -> Any:  # returns google-genai Client (untyped SDK)
-        if self._client is None:
-            key = self._api_key or settings.gemini_api_key.get_secret_value()
-            if not key:
-                raise ConfigurationError("gemini_api_key_missing", model=self.model_name)
-            from google import genai
+    def _resolve_providers(self) -> list[tuple[str, Any]]:
+        """Ordered (label, SDK client) providers to try, primary first.
 
-            self._client = genai.Client(api_key=key)
-        return self._client
+        Built once and cached. An injected client/providers wins (tests); otherwise
+        providers are built from settings: the configured backend first, then the
+        other as a fallback (when enabled and configured).
+        """
+        if self._resolved is not None:
+            return self._resolved
+        if self._injected_providers is not None:
+            self._resolved = self._injected_providers
+        elif self._client is not None:
+            self._resolved = [("injected", self._client)]
+        else:
+            self._resolved = self._build_providers()
+        if not self._resolved:
+            raise ConfigurationError("gemini_api_key_missing", model=self.model_name)
+        return self._resolved
+
+    def _build_providers(self) -> list[tuple[str, Any]]:
+        """Construct providers from settings (Vertex AI and/or AI Studio)."""
+        from google import genai
+
+        order = ["vertex", "ai_studio"]
+        if settings.gemini_backend == "ai_studio":
+            order = ["ai_studio", "vertex"]
+        if not settings.gemini_fallback_enabled:
+            order = order[:1]
+
+        providers: list[tuple[str, Any]] = []
+        for kind in order:
+            if kind == "vertex" and settings.gcp_project:
+                providers.append(
+                    (
+                        "vertex",
+                        genai.Client(
+                            vertexai=True,
+                            project=settings.gcp_project,
+                            location=settings.gcp_location,
+                        ),
+                    )
+                )
+            elif kind == "ai_studio":
+                key = self._api_key or settings.gemini_api_key.get_secret_value()
+                if key:
+                    providers.append(("ai_studio", genai.Client(api_key=key)))
+        return providers
 
     def _build_config(
         self, system: str | None, temperature: float | None, schema: type[BaseModel] | None
@@ -162,12 +204,39 @@ class GeminiClient:
         return isinstance(code, int) and code in _TRANSIENT_CODES
 
     async def _call(self, prompt: str, config: Any) -> Result[Any, LLMError]:
-        """Run a generation with retry; return the raw SDK response or an error."""
+        """Run a generation, trying each provider in turn; first success wins.
+
+        Each provider runs its own transient-retry loop; if a provider ultimately
+        fails (quota/credits/auth/etc.), we fall back to the next one. This is what
+        lets the system run on Vertex (GCP credits) and seamlessly continue on the
+        AI Studio key once the credits are gone.
+        """
         try:
-            client = self._ensure_client()
+            providers = self._resolve_providers()
         except ConfigurationError as exc:
             return Err(LLMError("api_key_missing", cause=exc, model=self.model_name))
 
+        last_error: LLMError | None = None
+        for label, client in providers:
+            result = await self._attempt(client, label, prompt, config)
+            if result.is_ok():
+                return result
+            last_error = result.unwrap_err()
+            if len(providers) > 1:
+                log.warning(
+                    "llm_provider_fallback",
+                    model=self.model_name,
+                    failed_provider=label,
+                    error=last_error.message,
+                )
+        if last_error is not None:
+            return Err(last_error)
+        return Err(LLMError("no_provider", model=self.model_name))
+
+    async def _attempt(
+        self, client: Any, provider: str, prompt: str, config: Any
+    ) -> Result[Any, LLMError]:
+        """Run a generation against one provider, with transient-error retry."""
         delay = self._base_delay
         for attempt in range(self._max_retries):
             try:
@@ -184,6 +253,7 @@ class GeminiClient:
                     log.warning(
                         "llm_retry",
                         model=self.model_name,
+                        provider=provider,
                         attempt=attempt,
                         code=code,
                         wait_s=round(wait, 2),
@@ -192,7 +262,13 @@ class GeminiClient:
                     await asyncio.sleep(wait)
                     delay *= 2
                     continue
-                log.error("llm_call_failed", model=self.model_name, code=code, error=str(exc))
+                log.error(
+                    "llm_call_failed",
+                    model=self.model_name,
+                    provider=provider,
+                    code=code,
+                    error=str(exc),
+                )
                 return Err(
                     LLMError(
                         "generation_failed", cause=exc, model=self.model_name, status_code=code

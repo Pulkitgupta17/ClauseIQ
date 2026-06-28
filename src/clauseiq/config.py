@@ -65,6 +65,16 @@ class Settings(BaseSettings):
     orchestration_model: str = "gemini-2.5-flash"
     analysis_model: str = "gemini-2.5-pro"
 
+    # Provider for Gemini: "ai_studio" (API key) or "vertex" (Vertex AI on GCP,
+    # auth via Application Default Credentials — no key, billed to the GCP project).
+    # With fallback on, if the primary fails (quota/credits/auth) the other provider
+    # is tried — e.g. run on Vertex (GCP credits) and fall back to the AI Studio key
+    # automatically when the credits run out.
+    gemini_backend: Literal["ai_studio", "vertex"] = "ai_studio"
+    gemini_fallback_enabled: bool = True
+    gcp_project: str = ""
+    gcp_location: str = "us-central1"
+
     # --- Embeddings (local, free) -------------------------------------------
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
 

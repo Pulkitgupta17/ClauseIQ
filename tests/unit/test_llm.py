@@ -160,6 +160,39 @@ async def test_missing_api_key_is_error(monkeypatch: pytest.MonkeyPatch) -> None
     assert result.unwrap_err().message == "api_key_missing"
 
 
+# --- provider fallback -------------------------------------------------------
+
+
+async def test_falls_back_to_secondary_provider_when_primary_fails() -> None:
+    # Primary exhausts its retries on quota (429); the secondary then serves it —
+    # this is the "Vertex credits run out -> continue on the AI Studio key" path.
+    primary = _FakeModels(errors=[_ApiError(429, "quota") for _ in range(3)])
+    fallback = _FakeModels(response=_FakeResponse(text="from fallback"))
+    client = GeminiClient(
+        "gemini-test",
+        providers=[("vertex", _FakeClient(primary)), ("ai_studio", _FakeClient(fallback))],
+        base_delay=0.0,
+    )
+    result = await client.generate("hi")
+    assert result.is_ok()
+    assert result.unwrap() == "from fallback"
+    assert primary.calls == 3
+    assert fallback.calls == 1
+
+
+async def test_primary_provider_used_when_healthy() -> None:
+    primary = _FakeModels(response=_FakeResponse(text="from primary"))
+    fallback = _FakeModels(response=_FakeResponse(text="from fallback"))
+    client = GeminiClient(
+        "gemini-test",
+        providers=[("vertex", _FakeClient(primary)), ("ai_studio", _FakeClient(fallback))],
+        base_delay=0.0,
+    )
+    result = await client.generate("hi")
+    assert result.unwrap() == "from primary"
+    assert fallback.calls == 0
+
+
 # --- factory -----------------------------------------------------------------
 
 

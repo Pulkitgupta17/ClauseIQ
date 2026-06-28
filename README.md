@@ -6,7 +6,7 @@
 
 Runs as a streaming web app **and** as an MCP server inside Claude Desktop.
 
-[Live app](https://clauseiq.vercel.app) · [API health](https://clauseiq-api.onrender.com/healthz) · [Architecture](docs/ARCHITECTURE.md) · [Eval methodology](docs/EVAL_METHODOLOGY.md) · [MCP install](docs/MCP_INSTALL.md)
+[Live app](https://clauseiq.vercel.app) · [Architecture](docs/ARCHITECTURE.md) · [Eval methodology](docs/EVAL_METHODOLOGY.md) · [Deploy](docs/DEPLOY.md) · [MCP install](docs/MCP_INSTALL.md)
 
 </div>
 
@@ -69,11 +69,14 @@ detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
    are thin adapters over the same `ContractAnalyzer`. *Tradeoff:* a strict
    hexagonal boundary is more upfront structure, but it's why the exact same
    analysis runs in a browser and inside Claude Desktop with no duplicated logic.
-2. **Gemini on the free tier, not OpenAI/Anthropic API.** Orchestration on
-   `gemini-2.5-flash`, analysis on `gemini-2.5-pro`. *Tradeoff:* a single-vendor
-   dependency and rate limits, in exchange for ~zero cost and strong structured
-   output — and Claude is still available *free* via the user's own Claude Desktop
-   through MCP.
+2. **Gemini via Vertex AI, with automatic fallback to AI Studio.** Orchestration on
+   `gemini-2.5-flash`, analysis on `gemini-2.5-pro`. In production it runs on
+   **Vertex AI** (billed to GCP credits, authenticated by the Cloud Run service
+   account — no key on the server); if Vertex is unavailable or the credits run out,
+   the client **automatically falls back to an AI Studio key**, so the app keeps
+   working. *Tradeoff:* a single-vendor (Google) dependency, in exchange for ~zero
+   cost, strong structured output, and resilience — and Claude is still free via the
+   user's own Claude Desktop over MCP.
 3. **A deterministic citation metric, not just LLM judges.** Citation accuracy is
    checked against the actual statute (existence + text overlap), so the
    anti-hallucination guarantee never depends on another model's opinion.
@@ -166,6 +169,9 @@ cd frontend && pnpm install && pnpm dev        # http://localhost:5173
 ```
 
 API docs at http://localhost:8000/docs. Run the test suite with `uv run pytest`.
+
+**Deploy:** backend on Cloud Run, frontend on Vercel, Gemini on Vertex AI with
+AI-Studio fallback — see **[docs/DEPLOY.md](docs/DEPLOY.md)**.
 
 ## Install into Claude Desktop (MCP)
 
