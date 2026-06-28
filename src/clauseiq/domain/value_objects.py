@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from enum import Enum, IntEnum
 
+from clauseiq.domain.exceptions import ValidationError
+
 
 class Severity(IntEnum):
     """Severity of a flagged clause, ordered from least to most serious.
@@ -38,6 +40,22 @@ class Severity(IntEnum):
     def normalized_score(self) -> float:
         """Severity mapped deterministically onto the inclusive range 0.0-1.0."""
         return self.value / max(member.value for member in Severity)
+
+    @property
+    def score(self) -> int:
+        """The public 1-5 severity score (INFO=1 ... CRITICAL=5)."""
+        return self.value + 1
+
+    @classmethod
+    def from_score(cls, score: int) -> Severity:
+        """Map a 1-5 score (as emitted by the analyzer LLM) to a member.
+
+        Raises:
+            ValidationError: If ``score`` is outside the inclusive range 1-5.
+        """
+        if not 1 <= score <= 5:
+            raise ValidationError("severity score must be within [1, 5]", score=score)
+        return cls(score - 1)
 
 
 class ClauseType(str, Enum):

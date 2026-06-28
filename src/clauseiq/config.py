@@ -23,7 +23,7 @@ import json
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _UNVERSIONED = "unversioned"
@@ -59,9 +59,21 @@ class Settings(BaseSettings):
     )
 
     # --- LLMs (Google AI Studio, free tier) ---------------------------------
-    gemini_api_key: str = ""
-    orchestration_model: str = "gemini-2.0-flash"
+    # SecretStr so the key never appears in logs, reprs, or tracebacks; read it
+    # explicitly with `.get_secret_value()` only where the SDK needs it.
+    gemini_api_key: SecretStr = SecretStr("")
+    orchestration_model: str = "gemini-2.5-flash"
     analysis_model: str = "gemini-2.5-pro"
+
+    # Provider for Gemini: "ai_studio" (API key) or "vertex" (Vertex AI on GCP,
+    # auth via Application Default Credentials — no key, billed to the GCP project).
+    # With fallback on, if the primary fails (quota/credits/auth) the other provider
+    # is tried — e.g. run on Vertex (GCP credits) and fall back to the AI Studio key
+    # automatically when the credits run out.
+    gemini_backend: Literal["ai_studio", "vertex"] = "ai_studio"
+    gemini_fallback_enabled: bool = True
+    gcp_project: str = ""
+    gcp_location: str = "us-central1"
 
     # --- Embeddings (local, free) -------------------------------------------
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
@@ -91,6 +103,14 @@ class Settings(BaseSettings):
     # --- Eval thresholds -----------------------------------------------------
     faithfulness_threshold: float = Field(default=0.85, ge=0.0, le=1.0)
     context_recall_threshold: float = Field(default=0.80, ge=0.0, le=1.0)
+
+    # --- Web / CORS ----------------------------------------------------------
+    # Origins allowed to call the API from a browser. Defaults cover the Vite dev
+    # server (5173) and preview (4173); set CLAUSEIQ_CORS_ALLOWED_ORIGINS (JSON
+    # list) for deployed frontends. Never use "*" with credentials.
+    cors_allowed_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:5173", "http://localhost:4173"],
+    )
 
     # --- Runtime / logging ---------------------------------------------------
     log_level: str = "INFO"

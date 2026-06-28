@@ -19,6 +19,8 @@ dependencies = [
     "langgraph>=0.2,<0.3",
     "chromadb>=0.5,<0.6",
     "sentence-transformers>=3.0",
+    # Declared directly so the CPU-only index (see [tool.uv.sources]) applies on Linux.
+    "torch>=2.2",
     "rank-bm25>=0.2.2",
     "pymupdf>=1.24",
     "httpx>=0.27",
@@ -30,6 +32,7 @@ dependencies = [
 
 [project.scripts]
 clauseiq-ingest-laws = "clauseiq.infrastructure.ingestion.law_ingestor:main"
+clauseiq-mcp = "clauseiq.interfaces.mcp.server:main"
 
 [dependency-groups]
 # Installed by default on `uv sync`. ruff/mypy match the pre-commit pins so the
@@ -54,6 +57,18 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/clauseiq"]
+
+# ---------------------------------------------------------------------------
+# uv — force CPU-only PyTorch on Linux (the deploy image) to avoid pulling the
+# multi-GB CUDA build. macOS/Windows resolve torch from PyPI (already CPU-only).
+# ---------------------------------------------------------------------------
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 # ---------------------------------------------------------------------------
 # Ruff — linter + formatter
@@ -125,7 +140,9 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 minversion = "8.0"
 addopts = "-ra --strict-markers --strict-config"
-testpaths = ["tests"]
+# Default run = unit + integration. The eval suite is run explicitly
+# (`pytest tests/evaluation/`) — it needs the eval group and a Gemini key.
+testpaths = ["tests/unit", "tests/integration"]
 # Import the package from src/ directly so test collection never depends on the
 # (occasionally stale) editable install being rebuilt.
 pythonpath = ["src"]

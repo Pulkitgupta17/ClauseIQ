@@ -103,12 +103,24 @@ class EmbeddingError(ClauseIQError):
     """The embedding model failed to produce vectors."""
 
 
+class LLMError(ClauseIQError):
+    """An LLM call failed: generation, structured parsing, missing key, or rate limit."""
+
+
 class RetrievalError(ClauseIQError):
     """Retrieval failed or returned nothing usable."""
 
 
 class LowConfidenceError(ClauseIQError):
     """Retrieval returned results below the configured confidence threshold."""
+
+
+class AnalysisError(ClauseIQError):
+    """The contract-analysis pipeline failed to produce a result."""
+
+
+class GuardrailError(ClauseIQError):
+    """Input rejected by a guardrail (not a contract, or a prompt-injection attempt)."""
 
 
 # --- Repositories ------------------------------------------------------------
@@ -130,11 +142,14 @@ class UnwrapError(ClauseIQError):
 
 
 __all__ = [
+    "AnalysisError",
     "ChunkingError",
     "ClauseIQError",
     "ConfigurationError",
     "EmbeddingError",
+    "GuardrailError",
     "IngestionError",
+    "LLMError",
     "LawSectionNotFoundError",
     "LowConfidenceError",
     "PDFParsingError",

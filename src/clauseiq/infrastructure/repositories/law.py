@@ -30,14 +30,8 @@ log = get_logger(__name__)
 
 
 def amendment_history_note(citation: Citation) -> str | None:
-    """User-facing caveat for a citation, or ``None`` if an amendment date exists.
-
-    The corpus does not track amendment history; when ``last_amended`` is unknown
-    this returns a message the UI should show so users verify current law.
-    """
-    if citation.last_amended is not None:
-        return None
-    return "Amendment history not tracked — verify current law for time-sensitive matters."
+    """Thin wrapper over :attr:`Citation.amendment_note` (domain source of truth)."""
+    return citation.amendment_note
 
 
 def _parse_date(value: str | None) -> date | None:

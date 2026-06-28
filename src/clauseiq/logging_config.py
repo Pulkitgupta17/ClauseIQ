@@ -19,6 +19,7 @@ Usage::
 from __future__ import annotations
 
 import logging
+import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -78,7 +79,9 @@ def configure_logging(*, level: str | None = None, json_logs: bool | None = None
     structlog.configure(
         processors=[*shared_processors, renderer],
         wrapper_class=structlog.make_filtering_bound_logger(level_number),
-        logger_factory=structlog.PrintLoggerFactory(),
+        # Logs go to stderr so stdout stays clean for data (script output) and,
+        # critically, for the MCP stdio JSON-RPC protocol.
+        logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
         cache_logger_on_first_use=True,
     )
     _configured = True
@@ -95,6 +98,21 @@ def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
 def new_trace_id() -> str:
     """Generate a fresh hex trace id."""
     return uuid4().hex
+
+
+@contextmanager
+def ensure_trace(trace_id: str | None = None) -> Iterator[str]:
+    """Yield the active trace id, creating one only if none is set.
+
+    Lets a use case reuse the request's ``trace_id`` (set by API middleware) or
+    establish its own when called from MCP/scripts, without nesting ids.
+    """
+    existing = trace_id_var.get()
+    if existing is not None and trace_id is None:
+        yield existing
+    else:
+        with trace_context(trace_id) as resolved:
+            yield resolved
 
 
 @contextmanager
@@ -118,6 +136,7 @@ def trace_context(trace_id: str | None = None) -> Iterator[str]:
 
 __all__ = [
     "configure_logging",
+    "ensure_trace",
     "get_logger",
     "new_trace_id",
     "trace_context",

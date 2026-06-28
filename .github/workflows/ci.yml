@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend pipeline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install dependencies (incl. eval group)
+        run: uv sync --frozen --all-groups
+
+      # Step 1 — lint + format
+      - name: Lint (ruff)
+        run: |
+          uv run ruff check src tests scripts
+          uv run ruff format --check src tests scripts
+
+      # Step 2 — type check
+      - name: Type check (mypy --strict)
+        run: uv run mypy --strict src
+
+      # Step 3 — unit tests
+      - name: Unit tests
+        run: uv run pytest tests/unit -q
+
+      # Step 4 — integration tests (LLMs are mocked in these)
+      - name: Integration tests
+        run: uv run pytest tests/integration -q
+
+      # Steps 5 & 6 — evaluation suite + EVAL GATE.
+      # The evaluation test asserts Citation Accuracy >= 0.90 and Faithfulness >= 0.85,
+      # so a regression fails the job. Contextual Recall/Precision are reported but
+      # informational (see docs/EVAL_METHODOLOGY.md). The gate runs only when a
+      # GEMINI_API_KEY secret is configured; otherwise the deterministic metrics run
+      # and the live LLM-judged gate skips cleanly.
+      - name: Evaluation suite + eval gate
+        env:
+          CLAUSEIQ_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          HF_HUB_DISABLE_XET: "1"
+        run: uv run pytest tests/evaluation -q
+
+  # Step 7 — the image is built and deployed by deploy.yml (Cloud Build →
+  # Artifact Registry → Cloud Run) after this workflow succeeds on main.
