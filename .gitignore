@@ -61,3 +61,6 @@ docs/DEPLOY.md
 docs/DEMO_SCRIPT.md
 docs/LAUNCH_POST.md
 docs/components/
+
+# --- macOS-style duplicate copies ("filename 2.ext") -------------------------
+* [0-9]*
