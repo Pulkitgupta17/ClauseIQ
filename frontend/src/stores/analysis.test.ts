@@ -42,10 +42,15 @@ describe("analysis store", () => {
     expect(store().steps.every((step) => step.status === "complete")).toBe(true);
   });
 
-  it("captures an error event", () => {
+  it("maps an error event to friendly copy and marks the running step failed", () => {
     store().startSession();
-    store().handleEvent({ event: "error", data: { error: "boom" } });
+    store().handleEvent({ event: "error", data: { error: "not_a_contract" } });
     expect(store().status).toBe("error");
-    expect(store().error).toBe("boom");
+    // Friendly message, never the raw code.
+    expect(store().error).toMatch(/doesn't look like a contract/i);
+    expect(store().error).not.toContain("not_a_contract");
+    // The step that was running (the first) is marked failed, not left spinning.
+    expect(store().steps[0]?.status).toBe("error");
+    expect(store().steps.some((step) => step.status === "active")).toBe(false);
   });
 });

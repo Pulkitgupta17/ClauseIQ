@@ -1,3 +1,4 @@
+import { describeError } from "@/lib/errors";
 import {
   type AnalysisRequest,
   type ContractAnalysis,
@@ -6,6 +7,11 @@ import {
   doneEventDataSchema,
 } from "@/lib/schemas";
 import { create } from "zustand";
+
+/** Mark the step that was running as failed; leave completed/pending steps as-is. */
+function markActiveStepError(steps: StepState[]): StepState[] {
+  return steps.map((step) => (step.status === "active" ? { ...step, status: "error" } : step));
+}
 
 /** The four agent steps shown in the live trace, in order. */
 export const AGENT_STEPS = [
@@ -23,7 +29,7 @@ export const AGENT_STEPS = [
   },
 ] as const;
 
-export type StepStatus = "pending" | "active" | "complete";
+export type StepStatus = "pending" | "active" | "complete" | "error";
 export type SessionStatus = "idle" | "streaming" | "done" | "error";
 
 export interface StepState {
@@ -105,18 +111,27 @@ export const useAnalysisStore = create<AnalysisStore>((set) => ({
         };
       }
       if (event.event === "error") {
-        const message =
+        const raw =
           typeof event.data.error === "string"
             ? event.data.error
             : typeof event.data.message === "string"
               ? event.data.message
-              : "Analysis failed";
-        return { status: "error", error: message };
+              : null;
+        return {
+          status: "error",
+          error: describeError(raw),
+          steps: markActiveStepError(state.steps),
+        };
       }
       return { steps: advance(state.steps, event.event) };
     }),
 
-  fail: (message) => set({ status: "error", error: message }),
+  fail: (message) =>
+    set((state) => ({
+      status: "error",
+      error: message,
+      steps: markActiveStepError(state.steps),
+    })),
 
   reset: () =>
     set({ status: "idle", steps: initialSteps(-1), analysis: null, error: null, usage: null }),

@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import type { StepState } from "@/stores/analysis";
 import { motion } from "framer-motion";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, X } from "lucide-react";
 
 interface AgentTraceProps {
   steps: StepState[];
@@ -19,11 +19,14 @@ export function AgentTrace({ steps }: AgentTraceProps) {
               step.status === "complete" &&
                 "border-severity-low/40 bg-severity-low/15 text-severity-low",
               step.status === "active" && "border-primary/40 bg-primary/10 text-foreground",
+              step.status === "error" && "border-destructive/40 bg-destructive/15 text-destructive",
               step.status === "pending" && "border-border bg-muted text-muted-foreground",
             )}
           >
             {step.status === "complete" ? (
               <Check className="h-4 w-4" />
+            ) : step.status === "error" ? (
+              <X className="h-4 w-4" />
             ) : step.status === "active" ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
@@ -33,6 +36,7 @@ export function AgentTrace({ steps }: AgentTraceProps) {
           <span
             className={cn(
               "text-sm",
+              step.status === "error" && "text-destructive",
               step.status === "pending" ? "text-muted-foreground" : "text-foreground",
             )}
           >
